@@ -1,0 +1,111 @@
+Resource Class (User.java):
+package com.example.demo.model;
+
+// Simple POJO representing the User resource
+public class User {
+    private Long id;
+    private String name;
+    private String email;
+
+    // Default constructor
+    public User() {}
+
+    // Parameterized constructor
+    public User(Long id, String name, String email) {
+        this.id = id;
+        this.name = name;
+        this.email = email;
+    }
+
+    // Getters and Setters
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+}
+REST Controller Class (UserController.java)
+package com.example.demo.controller;
+
+import com.example.demo.model.User;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/users")
+public class UserController {
+
+    // In-memory list to simulate database storage for CRUD operations
+    private final List<User> users = new ArrayList<>();
+
+    public UserController() {
+        // Seeding initial data
+        users.add(new User(1L, "Alice Smith", "alice@example.com"));
+        users.add(new User(2L, "Bob Jones", "bob@example.com"));
+    }
+
+    // CREATE operation
+    @PostMapping
+    public String createUser(@RequestBody User user) {
+        users.add(user);
+        return "User created successfully with ID: " + user.getId();
+    }
+
+    // READ operation (Fetch all users)
+    @GetMapping
+    public List<User> getAllUsers() {
+        return users;
+    }
+
+    // READ operation (Fetch single user by ID)
+    @GetMapping("/{id}")
+    public User getUserById(@PathVariable Long id) {
+        return users.stream()
+                .filter(user -> user.getId().equals(id))
+                .findFirst()
+                .orElse(null);
+    }
+
+    // UPDATE operation
+    @PutMapping("/{id}")
+    public String updateUser(@PathVariable Long id, @RequestBody User updatedUser) {
+        for (User user : users) {
+            if (user.getId().equals(id)) {
+                user.setName(updatedUser.getName());
+                user.setEmail(updatedUser.getEmail());
+                return "User updated successfully!";
+            }
+        }
+        return "User not found!";
+    }
+
+    // DELETE operation
+    @DeleteMapping("/{id}")
+    public String deleteUser(@PathVariable Long id) {
+        boolean removed = users.removeIf(user -> user.getId().equals(id));
+        if (removed) {
+            return "User deleted successfully!";
+        }
+        return "User not found!";
+    }
+}
