@@ -1,0 +1,47 @@
+package com.example.demo.model;
+
+public class SoapUser {
+    private Long id;
+    private String name;
+    private String email;
+
+    public SoapUser() {}
+
+    public SoapUser(Long id, String name, String email) {
+        this.id = id;
+        this.name = name;
+        this.email = email;
+    }
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+}
+User Service Implementation (UserServiceImpl.java):
+package com.example.demo.service;
+
+import com.example.demo.model.SoapUser;
+import org.springframework.stereotype.Service;
+import java.util.HashMap;
+import java.util.Map;
+
+@Service // Annotate service with @Service
+public class UserServiceImpl implements UserService {
+
+    private static final Map<Long, SoapUser> mockStorage = new HashMap<>();
+
+    static {
+        // Seeding database records matching lab configuration paths
+        mockStorage.put(1L, new SoapUser(1L, "Rahul Kumar", "rahul@aditya.edu.in"));
+        mockStorage.put(2L, new SoapUser(2L, "Ananya Sen", "ananya@aditya.edu.in"));
+    }
+
+    @Override
+    public SoapUser getUserById(Long id) {
+        return mockStorage.get(id);
+    }
+}
+
