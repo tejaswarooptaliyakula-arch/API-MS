@@ -1,0 +1,139 @@
+XML Schema Definition (src/main/resources/users.xsd):
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+           xmlns:tns="http://example.com/demo/webservice"
+           targetNamespace="http://example.com/demo/webservice" 
+           elementFormDefault="qualified">
+
+    <!-- Incoming request root schema -->
+    <xs:element name="GetUserRequest">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="id" type="xs:long"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- Outgoing response root schema -->
+    <xs:element name="GetUserResponse">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="id" type="xs:long"/>
+                <xs:element name="name" type="xs:string"/>
+                <xs:element name="email" type="xs:string"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+</xs:schema>
+
+SOAP Endpoint Gateway Controller Routing Component (UserEndpoint.java):
+package com.example.demo.endpoint;
+
+import com.example.demo.model.SoapUser;
+import com.example.demo.service.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.ws.server.endpoint.annotation.Endpoint;
+import org.springframework.ws.server.endpoint.annotation.PayloadRoot;
+import org.springframework.ws.server.endpoint.annotation.RequestPayload;
+import org.springframework.ws.server.endpoint.annotation.ResponsePayload;
+import org.w3c.dom.Element;
+import org.w3c.dom.Document;
+import javax.xml.parsers.DocumentBuilderFactory;
+
+@Endpoint
+public class UserEndpoint {
+
+    private static final String NAMESPACE_URI = "http://example.com/demo/webservice";
+
+    @Autowired
+    private UserService userService;
+
+    @PayloadRoot(namespace = NAMESPACE_URI, localPart = "GetUserRequest")
+    @ResponsePayload
+    public Element handleGetUserRequest(@RequestPayload Element request) throws Exception {
+        // Extracting target user id element values manually from request DOM payload
+        String idText = request.getElementsByTagNameNS("*", "id").item(0).getTextContent();
+        Long userId = Long.parseLong(idText);
+
+        SoapUser user = userService.getUserById(userId);
+
+        // Compiling returning GetUserResponse SOAP XML payload dynamically
+        Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
+        Element response = doc.createElementNS(NAMESPACE_URI, "GetUserResponse");
+        
+        Element idNode = doc.createElementNS(NAMESPACE_URI, "id");
+        Element nameNode = doc.createElementNS(NAMESPACE_URI, "name");
+        Element emailNode = doc.createElementNS(NAMESPACE_URI, "email");
+
+        if (user != null) {
+            idNode.setTextContent(user.getId().toString());
+            nameNode.setTextContent(user.getName());
+            emailNode.setTextContent(user.getEmail());
+        } else {
+            idNode.setTextContent(userId.toString());
+            nameNode.setTextContent("Not Found");
+            emailNode.setTextContent("N/A");
+        }
+
+        response.appendChild(idNode);
+        response.appendChild(nameNode);
+        response.appendChild(emailNode);
+
+        return response;
+    }
+}
+Web Services Component Configuration Middleware (WebServiceConfig.java):
+package com.example.demo.config;
+
+import org.springframework.boot.web.servlet.ServletRegistrationBean;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.ws.config.annotation.EnableWs;
+import org.springframework.ws.config.annotation.WsConfigurerAdapter;
+import org.springframework.ws.transport.http.MessageDispatcherServlet;
+import org.springframework.ws.wsdl.wsdl11.DefaultWsdl11Definition;
+import org.springframework.xml.xsd.SimpleXsdSchema;
+import org.springframework.xml.xsd.XsdSchema;
+
+@EnableWs
+@Configuration
+public class WebServiceConfig extends WsConfigurerAdapter {
+
+    @Bean
+    public ServletRegistrationBean<MessageDispatcherServlet> messageDispatcherServlet(ApplicationContext applicationContext) {
+        MessageDispatcherServlet servlet = new MessageDispatcherServlet();
+        servlet.setApplicationContext(applicationContext);
+        servlet.setTransformWsdlLocations(true);
+        return new ServletRegistrationBean<>(servlet, "/ws/*");
+    }
+
+    // Dynamic WSDL compilation layer binding configuration properties implicitly
+    @Bean(name = "users")
+    public DefaultWsdl11Definition defaultWsdl11Definition(XsdSchema usersSchema) {
+        DefaultWsdl11Definition wsdl11Definition = new DefaultWsdl11Definition();
+        wsdl11Definition.setPortTypeName("UsersPort");
+        wsdl11Definition.setLocationUri("/ws");
+        wsdl11Definition.setTargetNamespace("http://example.com/demo/webservice");
+        wsdl11Definition.setSchema(usersSchema);
+        return wsdl11Definition;
+    }
+
+    @Bean
+    public XsdSchema usersSchema() {
+        return new SimpleXsdSchema(new ClassPathResource("users.xsd"));
+    }
+}
+
+Main Entrypoint Module Application Configuration (DemoApplication.java):
+package com.example.demo;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class DemoApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(DemoApplication.class, args);
+    }
+}
